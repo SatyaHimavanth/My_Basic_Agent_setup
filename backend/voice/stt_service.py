@@ -6,11 +6,16 @@ import wave
 
 from dataclasses import dataclass
 from importlib.util import find_spec
+from pathlib import Path
 
 from agents.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
+
+
+def _default_whisper_model_dir() -> Path:
+    return Path(__file__).resolve().parent.parent / "models" / "whisper"
 
 
 @dataclass(slots=True)
@@ -44,6 +49,8 @@ class STTService:
         self.use_fp16 = False
         self.precision = None
         self.model_size = os.getenv("WHISPER_MODEL_SIZE", "base")
+        configured_dir = os.getenv("WHISPER_MODEL_DIR")
+        self.model_dir = Path(configured_dir) if configured_dir else _default_whisper_model_dir()
         self._initialization_error: str | None = None
 
     def get_runtime_info(self) -> STTRuntimeInfo:
@@ -121,16 +128,18 @@ class STTService:
             import whisper
 
             self.device, self.use_fp16, self.precision = _detect_compute_runtime()
+            self.model_dir.mkdir(parents=True, exist_ok=True)
             self.model = whisper.load_model(
                 self.model_size,
-                download_root=os.getenv("WHISPER_MODEL_DIR"),
+                download_root=str(self.model_dir),
                 device=self.device,
             )
             logger.info(
-                "Loaded Whisper model '%s' on %s with %s precision.",
+                "Loaded Whisper model '%s' on %s with %s precision from %s.",
                 self.model_size,
                 self.device,
                 self.precision,
+                self.model_dir,
             )
             return True
         except Exception as exc:

@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/node_modules/
+**/dist/
+**/build/
+backend/logs/
+backend/research/
+backend/models/
+temp_hitl_repo/
+temp_voice_repo/
