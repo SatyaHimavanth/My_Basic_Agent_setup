@@ -1,11 +1,13 @@
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
   padding: 20px;
   background:
     radial-gradient(circle at top left, rgba(255, 148, 91, 0.25), transparent 28%),
     radial-gradient(circle at top right, rgba(53, 136, 255, 0.22), transparent 24%),
     linear-gradient(180deg, #f5efe2 0%, #ebe4d5 100%);
   color: #1d1a16;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar,
@@ -99,11 +101,12 @@
 
 .workspace {
   max-width: 1280px;
+  height: 100%;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .sidebar,
@@ -112,7 +115,8 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 40px);
+  min-height: 0;
+  height: 100%;
 }
 
 .sidebar {
@@ -121,6 +125,10 @@
   gap: 20px;
   position: sticky;
   top: 20px;
+}
+
+.chat-card {
+  overflow: hidden;
 }
 
 .sidebar-top {
@@ -277,19 +285,20 @@
 }
 
 .message {
-  margin-bottom: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
   max-width: min(76%, 760px);
   width: fit-content;
 }
 
 .message pre {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   white-space: pre-wrap;
   font-family: inherit;
   color: #2d241a;
-  line-height: 1.45;
+  line-height: 1.4;
+  font-size: 0.95rem;
 }
 
 .message.user {
@@ -312,9 +321,115 @@
   max-width: min(82%, 820px);
 }
 
+.message.activity {
+  background: rgba(255, 249, 238, 0.72);
+  border: 1px solid rgba(80, 63, 39, 0.1);
+  margin-right: auto;
+  max-width: min(72%, 700px);
+  padding: 7px 11px;
+}
+
 .message.system {
   background: #f8d7d7;
   margin-right: auto;
+}
+
+.activity-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.activity-summary-copy {
+  min-width: 0;
+}
+
+.activity-summary-copy strong,
+.activity-summary-copy span {
+  display: block;
+}
+
+.activity-summary-copy strong {
+  margin-top: 4px;
+  color: #3a2f22;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.activity-summary-copy span {
+  margin-top: 2px;
+  color: #8b6f4f;
+  font-size: 0.76rem;
+}
+
+.activity-chevron {
+  color: #8b6f4f;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transform: rotate(180deg);
+  transition: transform 150ms ease;
+}
+
+.activity-chevron.expanded {
+  transform: rotate(0deg);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(80, 63, 39, 0.08);
+}
+
+.activity-item {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+
+.activity-item.pending {
+  opacity: 0.7;
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #8b6f4f;
+  margin-top: 7px;
+  flex: 0 0 auto;
+}
+
+.activity-copy {
+  min-width: 0;
+}
+
+.activity-copy p,
+.activity-copy small {
+  margin: 0;
+  color: #4b3d2d;
+  line-height: 1.4;
+}
+
+.activity-copy p {
+  font-size: 0.88rem;
+}
+
+.activity-copy small {
+  display: block;
+  margin-top: 2px;
+  color: #7a6650;
+  font-size: 0.76rem;
 }
 
 .review-inline {
@@ -440,10 +555,12 @@
 
   .workspace {
     grid-template-columns: 1fr;
+    height: 100%;
   }
 
   .sidebar {
     position: static;
+    height: auto;
   }
 
   .composer {

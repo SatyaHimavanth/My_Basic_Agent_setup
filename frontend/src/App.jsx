@@ -6,6 +6,10 @@ function createThreadId() {
   return `thread-${Date.now()}`
 }
 
+function createMessageId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 async function postJson(path, payload) {
   const response = await fetch(path, {
     method: 'POST',
@@ -21,6 +25,58 @@ async function postJson(path, payload) {
   return data
 }
 
+async function postJsonStream(path, payload, onEvent) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    let detail = 'Request failed'
+    try {
+      const data = await response.json()
+      detail = data?.detail || detail
+    } catch {
+      detail = response.statusText || detail
+    }
+    throw new Error(detail)
+  }
+
+  if (!response.body) {
+    throw new Error('Streaming response is unavailable.')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { value, done } = await reader.read()
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+
+    let boundaryIndex = buffer.indexOf('\n')
+    while (boundaryIndex !== -1) {
+      const line = buffer.slice(0, boundaryIndex).trim()
+      buffer = buffer.slice(boundaryIndex + 1)
+
+      if (line) {
+        onEvent(JSON.parse(line))
+      }
+
+      boundaryIndex = buffer.indexOf('\n')
+    }
+
+    if (done) {
+      const trailing = buffer.trim()
+      if (trailing) {
+        onEvent(JSON.parse(trailing))
+      }
+      break
+    }
+  }
+}
+
 function resolveDefaultMode(clientAvailable, serverAvailable) {
   if (clientAvailable) {
     return 'client'
@@ -29,6 +85,15 @@ function resolveDefaultMode(clientAvailable, serverAvailable) {
     return 'server'
   }
   return 'off'
+}
+
+function createActivityMessage() {
+  return {
+    id: createMessageId('activity'),
+    role: 'activity',
+    items: [],
+    expanded: false,
+  }
 }
 
 function App() {
@@ -40,6 +105,7 @@ function App() {
   const [threadId, setThreadId] = useState(createThreadId())
   const [messages, setMessages] = useState([
     {
+      id: createMessageId('assistant'),
       role: 'assistant',
       text: 'I am a helpful assistant. How can I help you today?',
     },
@@ -304,10 +370,56 @@ function App() {
     }
   }, [clientTTSAvailable, serverTTSAvailable, speakWithClient, speakWithServer, ttsMode])
 
+  const appendStatusToActivity = useCallback((activityId, event) => {
+    setMessages((current) =>
+      current.map((message) => {
+        if (message.id !== activityId || message.role !== 'activity') {
+          return message
+        }
+
+        const nextItem = {
+          text: event.text,
+          detail: event.detail || '',
+        }
+        const items = message.items || []
+        const previousItem = items[items.length - 1]
+        if (
+          previousItem &&
+          previousItem.text === nextItem.text &&
+          previousItem.detail === nextItem.detail
+        ) {
+          return message
+        }
+
+        return {
+          ...message,
+          items: [...items, nextItem],
+        }
+      })
+    )
+  }, [])
+
+  const toggleActivityExpanded = useCallback((activityId) => {
+    setMessages((current) =>
+      current.map((message) => {
+        if (message.id !== activityId || message.role !== 'activity') {
+          return message
+        }
+        return {
+          ...message,
+          expanded: !message.expanded,
+        }
+      })
+    )
+  }, [])
+
   const handleAgentResponse = useCallback((data) => {
     if (data.type === 'assistant') {
       const reply = data.message || '(no response)'
-      setMessages((current) => [...current, { role: 'assistant', text: reply }])
+      setMessages((current) => [
+        ...current,
+        { id: createMessageId('assistant'), role: 'assistant', text: reply },
+      ])
       setPendingReview(null)
       setEditedArgsText('')
       setIsEditingReview(false)
@@ -330,18 +442,32 @@ function App() {
       return
     }
 
-    setMessages((current) => [...current, { role: 'user', text: message }])
+    const activityMessage = createActivityMessage()
+
+    setMessages((current) => [
+      ...current,
+      { id: createMessageId('user'), role: 'user', text: message },
+      activityMessage,
+    ])
     setInput('')
     setIsLoading(true)
 
     try {
-      const data = await postJson('/api/chat', {
+      await postJsonStream('/api/chat/stream', {
         thread_id: threadId,
         message,
+      }, (event) => {
+        if (event.type === 'status') {
+          appendStatusToActivity(activityMessage.id, event)
+          return
+        }
+        handleAgentResponse(event)
       })
-      handleAgentResponse(data)
     } catch (error) {
-      setMessages((current) => [...current, { role: 'system', text: `Error: ${error.message}` }])
+      setMessages((current) => [
+        ...current,
+        { id: createMessageId('system'), role: 'system', text: `Error: ${error.message}` },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -364,15 +490,26 @@ function App() {
 
     setIsLoading(true)
     try {
-      const data = await postJson('/api/review', {
+      const activityMessage = createActivityMessage()
+      setMessages((current) => [...current, activityMessage])
+
+      await postJsonStream('/api/review/stream', {
         thread_id: threadId,
         decision,
         edited_args: editedArgs,
         reject_message: decision === 'reject' ? 'User rejected the weather request.' : undefined,
+      }, (event) => {
+        if (event.type === 'status') {
+          appendStatusToActivity(activityMessage.id, event)
+          return
+        }
+        handleAgentResponse(event)
       })
-      handleAgentResponse(data)
     } catch (error) {
-      setMessages((current) => [...current, { role: 'system', text: `Error: ${error.message}` }])
+      setMessages((current) => [
+        ...current,
+        { id: createMessageId('system'), role: 'system', text: `Error: ${error.message}` },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -391,6 +528,7 @@ function App() {
     window.speechSynthesis?.cancel?.()
     setMessages([
       {
+        id: createMessageId('assistant'),
         role: 'assistant',
         text: 'I am a helpful assistant. How can I help you today?',
       },
@@ -425,7 +563,10 @@ function App() {
       setInput((data.text || '').trim())
       setVoiceStatus(data.text ? 'Voice captured. Edit or send.' : 'No speech detected.')
     } catch (error) {
-      setMessages((current) => [...current, { role: 'system', text: `Error: ${error.message}` }])
+      setMessages((current) => [
+        ...current,
+        { id: createMessageId('system'), role: 'system', text: `Error: ${error.message}` },
+      ])
       setVoiceStatus('Voice error')
     }
   }
@@ -490,10 +631,16 @@ function App() {
           await startServerVoiceInput()
           return
         } catch (error) {
-          setMessages((current) => [...current, { role: 'system', text: `Error: ${error.message}` }])
+          setMessages((current) => [
+            ...current,
+            { id: createMessageId('system'), role: 'system', text: `Error: ${error.message}` },
+          ])
         }
       } else {
-        setMessages((current) => [...current, { role: 'system', text: `Error: voice input failed (${event.error}).` }])
+        setMessages((current) => [
+          ...current,
+          { id: createMessageId('system'), role: 'system', text: `Error: voice input failed (${event.error}).` },
+        ])
       }
 
       setVoiceStatus('Voice error')
@@ -544,10 +691,16 @@ function App() {
           await startServerVoiceInput()
           return
         } catch (serverError) {
-          setMessages((current) => [...current, { role: 'system', text: `Error: ${serverError.message}` }])
+          setMessages((current) => [
+            ...current,
+            { id: createMessageId('system'), role: 'system', text: `Error: ${serverError.message}` },
+          ])
         }
       } else {
-        setMessages((current) => [...current, { role: 'system', text: `Error: ${error.message}` }])
+        setMessages((current) => [
+          ...current,
+          { id: createMessageId('system'), role: 'system', text: `Error: ${error.message}` },
+        ])
       }
       setVoiceStatus('Voice error')
     }
@@ -694,10 +847,55 @@ function App() {
 
           <div className="message-list">
             {messages.map((message, index) => (
-              <article key={`${message.role}-${index}`} className={`message ${message.role}`}>
-                <p className="message-role">{message.role}</p>
-                <pre>{message.text}</pre>
-              </article>
+              message.role === 'activity' ? (
+                <article key={message.id || `${message.role}-${index}`} className="message activity">
+                  <button
+                    type="button"
+                    className="activity-summary"
+                    onClick={() => toggleActivityExpanded(message.id)}
+                  >
+                    <div className="activity-summary-copy">
+                      <p className="message-role">activity</p>
+                      <strong>
+                        {message.items?.[message.items.length - 1]?.text || 'Working on your request.'}
+                      </strong>
+                      <span>
+                        {message.expanded ? 'Hide details' : `Show details${message.items?.length ? ` (${message.items.length})` : ''}`}
+                      </span>
+                    </div>
+                    <span className={`activity-chevron ${message.expanded ? 'expanded' : ''}`}>
+                      ^
+                    </span>
+                  </button>
+
+                  {message.expanded && (
+                    <div className="activity-list">
+                      {(message.items || []).map((item, itemIndex) => (
+                        <div key={`${message.id}-item-${itemIndex}`} className="activity-item">
+                          <span className="activity-dot" />
+                          <div className="activity-copy">
+                            <p>{item.text}</p>
+                            {item.detail && <small>{item.detail}</small>}
+                          </div>
+                        </div>
+                      ))}
+                      {isLoading && index === messages.length - 1 && (
+                        <div className="activity-item pending">
+                          <span className="activity-dot" />
+                          <div className="activity-copy">
+                            <p>Working on your request.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
+              ) : (
+                <article key={message.id || `${message.role}-${index}`} className={`message ${message.role}`}>
+                  <p className="message-role">{message.role}</p>
+                  <pre>{message.text}</pre>
+                </article>
+              )
             ))}
 
             {pendingReview && (
@@ -750,17 +948,6 @@ function App() {
                       </div>
                     </>
                   )}
-                </div>
-              </article>
-            )}
-
-            {isLoading && (
-              <article className="message assistant loading">
-                <p className="message-role">assistant</p>
-                <div className="loader">
-                  <span />
-                  <span />
-                  <span />
                 </div>
               </article>
             )}

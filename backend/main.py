@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
+
+from collections.abc import Iterable
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic import Field
+from starlette.responses import StreamingResponse
 
 from agents.basic_agent.service import get_basic_agent_service
 from voice.stt_service import get_stt_service
@@ -44,6 +48,14 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def _stream_as_ndjson(events: Iterable[dict]) -> StreamingResponse:
+    def generate():
+        for event in events:
+            yield json.dumps(event) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @app.get("/api/voice/capabilities")
@@ -134,6 +146,20 @@ def chat(request: ChatRequest) -> dict:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.post("/api/chat/stream")
+def chat_stream(request: ChatRequest) -> StreamingResponse:
+    try:
+        events = get_basic_agent_service().stream_chat(
+            thread_id=request.thread_id,
+            message=request.message,
+        )
+        return _stream_as_ndjson(events)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.post("/api/review")
 def review(request: ReviewRequest) -> dict:
     try:
@@ -143,6 +169,22 @@ def review(request: ReviewRequest) -> dict:
             edited_args=request.edited_args,
             reject_message=request.reject_message,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/review/stream")
+def review_stream(request: ReviewRequest) -> StreamingResponse:
+    try:
+        events = get_basic_agent_service().stream_review(
+            thread_id=request.thread_id,
+            decision=request.decision,
+            edited_args=request.edited_args,
+            reject_message=request.reject_message,
+        )
+        return _stream_as_ndjson(events)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
