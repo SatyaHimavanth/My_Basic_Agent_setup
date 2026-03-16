@@ -18,21 +18,12 @@
 }
 
 .eyebrow,
-.panel-label,
-.message-role,
-.thread-label {
+.message-role {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 0.72rem;
   color: #8b6f4f;
 }
-
-.quick-actions {
-  display: grid;
-  gap: 12px;
-}
-
-.chip,
 .primary-btn,
 .secondary-btn,
 .approve-btn,
@@ -43,7 +34,6 @@
   transition: transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease;
 }
 
-.chip:hover,
 .primary-btn:hover,
 .secondary-btn:hover,
 .approve-btn:hover,
@@ -52,7 +42,6 @@
   transform: translateY(-1px);
 }
 
-.chip:disabled,
 .primary-btn:disabled,
 .secondary-btn:disabled,
 .approve-btn:disabled,
@@ -61,14 +50,6 @@
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
-}
-
-.chip {
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(34, 28, 21, 0.06);
-  color: #33281b;
-  text-align: left;
 }
 
 .sidebar code {
@@ -162,23 +143,11 @@
   font-size: 0.95rem;
 }
 
-.voice-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.voice-toggle {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  color: #3f3325;
-}
-
 .voice-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-top: 12px;
   color: #6a5946;
   font-size: 0.9rem;
 }
@@ -194,6 +163,10 @@
   font-size: 0.88rem;
 }
 
+.panel-status {
+  margin-top: 14px;
+}
+
 .chat-header {
   display: flex;
   justify-content: space-between;
@@ -202,14 +175,81 @@
   margin-bottom: 18px;
 }
 
-.chat-header h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  letter-spacing: -0.03em;
-  color: #201810;
-}
-
 .chat-header.compact {
   margin-bottom: 14px;
+  justify-content: flex-end;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-wrap {
+  position: relative;
+}
+
+.voice-button {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 14px;
+  background: #ede4cf;
+  color: #2f2418;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 252, 245, 0.98);
+  border: 1px solid rgba(80, 63, 39, 0.14);
+  box-shadow: 0 18px 50px rgba(60, 41, 16, 0.12);
+  z-index: 5;
+}
+
+.settings-section + .settings-section {
+  margin-top: 14px;
+}
+
+.settings-title {
+  display: block;
+  margin-bottom: 8px;
+  color: #8b6f4f;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-option {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 63, 39, 0.14);
+  background: #f4ecdc;
+  color: #2f2418;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.mode-option.active {
+  background: #172f52;
+  color: #fffaf2;
+}
+
+.mode-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .status-pill {
@@ -237,20 +277,24 @@
 }
 
 .message {
-  margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 18px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  max-width: min(76%, 760px);
+  width: fit-content;
 }
 
 .message pre {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   white-space: pre-wrap;
   font-family: inherit;
   color: #2d241a;
+  line-height: 1.45;
 }
 
 .message.user {
   background: #162f51;
+  margin-left: auto;
 }
 
 .message.user .message-role,
@@ -260,14 +304,17 @@
 
 .message.assistant {
   background: #efe6d5;
+  margin-right: auto;
 }
 
 .message.review {
   margin-top: 8px;
+  max-width: min(82%, 820px);
 }
 
 .message.system {
   background: #f8d7d7;
+  margin-right: auto;
 }
 
 .review-inline {
@@ -276,12 +323,12 @@
 
 .review-inline strong {
   display: block;
-  font-size: 1rem;
+  font-size: 0.96rem;
   color: #2f2418;
 }
 
 .review-inline p {
-  margin: 8px 0 12px;
+  margin: 6px 0 10px;
   color: #4b3d2d;
 }
 
@@ -293,7 +340,7 @@
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
   color: #241c13;
-  padding: 14px 16px;
+  padding: 12px 14px;
   font: inherit;
   margin: 0 0 12px;
 }
@@ -402,5 +449,22 @@
   .composer {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .chat-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-controls {
+    justify-content: space-between;
+  }
+
+  .settings-panel {
+    right: 0;
+    left: auto;
+    width: min(320px, calc(100vw - 48px));
   }
 }
