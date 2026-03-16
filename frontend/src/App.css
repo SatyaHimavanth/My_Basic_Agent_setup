@@ -129,6 +129,9 @@
 .chat-card {
   border-radius: 28px;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 40px);
 }
 
 .sidebar {
@@ -157,6 +160,38 @@
 .sidebar-note {
   color: #6a5946;
   font-size: 0.95rem;
+}
+
+.voice-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voice-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #3f3325;
+}
+
+.voice-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #6a5946;
+  font-size: 0.9rem;
+}
+
+.voice-field select,
+.voice-field input[type="range"] {
+  width: 100%;
+}
+
+.voice-status {
+  margin: 0;
+  color: #8b6f4f;
+  font-size: 0.88rem;
 }
 
 .chat-header {
@@ -195,8 +230,8 @@
 }
 
 .message-list {
-  min-height: 62vh;
-  max-height: 62vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding-right: 8px;
 }
@@ -291,9 +326,13 @@
 
 .composer {
   margin-top: 18px;
+  padding-top: 12px;
   display: flex;
   gap: 14px;
   align-items: end;
+  background: rgba(255, 252, 245, 0.96);
+  position: sticky;
+  bottom: 0;
 }
 
 .composer textarea {
@@ -308,8 +347,26 @@
 }
 
 .composer textarea {
-  min-height: 92px;
-  resize: vertical;
+  min-height: 0;
+  height: 52px;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: hidden;
+}
+
+.mic-btn {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 16px;
+  background: #ede4cf;
+  color: #2f2418;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mic-btn.recording {
+  background: #b54343;
+  color: white;
 }
 
 .review-actions {
