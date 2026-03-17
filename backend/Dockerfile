@@ -4,9 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH="/opt/venv/bin:/root/.local/bin:${PATH}" \
-    WHISPER_MODEL_DIR=/app/models/whisper \
-    XDG_CACHE_HOME=/app/models/.cache
+    PATH="/opt/venv/bin:/root/.local/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \

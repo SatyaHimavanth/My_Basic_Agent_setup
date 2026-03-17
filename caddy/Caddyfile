@@ -1,0 +1,12 @@
+http://{$CADDY_HOST:localhost} {
+	redir https://{$CADDY_HOST:localhost}{uri}
+}
+
+https://{$CADDY_HOST:localhost} {
+	tls internal
+
+	@api path /api*
+	reverse_proxy @api backend:8000
+
+	reverse_proxy frontend:5173
+}

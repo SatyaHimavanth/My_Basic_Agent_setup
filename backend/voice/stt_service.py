@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import time
 import wave
 
 from dataclasses import dataclass
@@ -129,23 +130,51 @@ class STTService:
 
             self.device, self.use_fp16, self.precision = _detect_compute_runtime()
             self.model_dir.mkdir(parents=True, exist_ok=True)
-            self.model = whisper.load_model(
-                self.model_size,
-                download_root=str(self.model_dir),
-                device=self.device,
-            )
-            logger.info(
-                "Loaded Whisper model '%s' on %s with %s precision from %s.",
-                self.model_size,
-                self.device,
-                self.precision,
-                self.model_dir,
-            )
-            return True
+            model_exists = self._model_file_path().exists()
+            max_attempts = 3 if not model_exists else 1
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    if not model_exists:
+                        logger.info(
+                            "Whisper model '%s' not found in %s. Download attempt %s/%s.",
+                            self.model_size,
+                            self.model_dir,
+                            attempt,
+                            max_attempts,
+                        )
+
+                    self.model = whisper.load_model(
+                        self.model_size,
+                        download_root=str(self.model_dir),
+                        device=self.device,
+                    )
+                    logger.info(
+                        "Loaded Whisper model '%s' on %s with %s precision from %s.",
+                        self.model_size,
+                        self.device,
+                        self.precision,
+                        self.model_dir,
+                    )
+                    return True
+                except Exception as exc:
+                    if attempt >= max_attempts:
+                        raise
+
+                    logger.warning(
+                        "Whisper model download attempt %s/%s failed: %s",
+                        attempt,
+                        max_attempts,
+                        exc,
+                    )
+                    time.sleep(1)
         except Exception as exc:
             self._initialization_error = f"Failed to initialize Whisper: {exc}"
             logger.exception("Failed to initialize server-side STT.")
             return False
+
+    def _model_file_path(self) -> Path:
+        return self.model_dir / f"{self.model_size}.pt"
 
 
 _stt_service: STTService | None = None
